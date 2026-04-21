@@ -42,8 +42,8 @@ function App() {
       fetchBudgets();
       fetchStats();
       fetchLeaderboard();
-    }
-  }, [currentUser]);
+    }, [currentUser, fetchExpenses, fetchBudgets, fetchStats, fetchLeaderboard]);
+  }, ;
 
   // API Calls
   const fetchUsers = async () => {
