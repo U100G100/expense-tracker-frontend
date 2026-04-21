@@ -3,16 +3,16 @@ import './App.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-function App() {
+export default function App() {
+  const [currentTab, setCurrentTab] = useState('home');
   const [currentUser, setCurrentUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('home');
+  const [users, setUsers] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [stats, setStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [users, setUsers] = useState([]);
-  
-  const [formData, setFormData] = useState({
+
+  const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
     category: 'Food',
     description: '',
@@ -20,36 +20,31 @@ function App() {
     payment_mode: 'UPI'
   });
 
-  const [newUser, setNewUser] = useState({
-    name: '',
-    pocket_money: 5000
-  });
-
   const [budgetForm, setBudgetForm] = useState({
     category: 'Food',
     budget_amount: 2000
   });
 
-  // Fetch user on startup
+  // Fetch users on app load
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Load user data when selected
+  // Fetch data when user changes
   useEffect(() => {
     if (currentUser) {
       fetchExpenses();
       fetchBudgets();
       fetchStats();
       fetchLeaderboard();
-    }, [currentUser, fetchExpenses, fetchBudgets, fetchStats, fetchLeaderboard]);
-  }, ;
+    }
+  }, [currentUser]);
 
-  // API Calls
+  // API Functions
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/users`);
-      const data = await res.json();
+      const response = await fetch(`${API_URL}/users`);
+      const data = await response.json();
       setUsers(data);
       if (data.length > 0) {
         setCurrentUser(data[0].id);
@@ -60,10 +55,9 @@ function App() {
   };
 
   const fetchExpenses = async () => {
-    if (!currentUser) return;
     try {
-      const res = await fetch(`${API_URL}/expenses/${currentUser}`);
-      const data = await res.json();
+      const response = await fetch(`${API_URL}/expenses/${currentUser}`);
+      const data = await response.json();
       setExpenses(data);
     } catch (error) {
       console.error('Error fetching expenses:', error);
@@ -71,10 +65,9 @@ function App() {
   };
 
   const fetchBudgets = async () => {
-    if (!currentUser) return;
     try {
-      const res = await fetch(`${API_URL}/budgets/${currentUser}`);
-      const data = await res.json();
+      const response = await fetch(`${API_URL}/budgets/${currentUser}`);
+      const data = await response.json();
       setBudgets(data);
     } catch (error) {
       console.error('Error fetching budgets:', error);
@@ -82,10 +75,9 @@ function App() {
   };
 
   const fetchStats = async () => {
-    if (!currentUser) return;
     try {
-      const res = await fetch(`${API_URL}/stats/${currentUser}`);
-      const data = await res.json();
+      const response = await fetch(`${API_URL}/stats/${currentUser}`);
+      const data = await response.json();
       setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -94,31 +86,36 @@ function App() {
 
   const fetchLeaderboard = async () => {
     try {
-      const res = await fetch(`${API_URL}/leaderboard`);
-      const data = await res.json();
+      const response = await fetch(`${API_URL}/leaderboard`);
+      const data = await response.json();
       setLeaderboard(data);
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
     }
   };
 
-  const handleAddExpense = async (e) => {
-    e.preventDefault();
-    if (!currentUser || !formData.amount) return;
+  const addExpense = async () => {
+    if (!newExpense.description || !newExpense.amount) {
+      alert('Please fill in all fields');
+      return;
+    }
 
     try {
-      const res = await fetch(`${API_URL}/expenses`, {
+      const response = await fetch(`${API_URL}/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: currentUser,
-          ...formData,
-          amount: parseFloat(formData.amount)
+          date: newExpense.date,
+          category: newExpense.category,
+          description: newExpense.description,
+          amount: parseFloat(newExpense.amount),
+          payment_mode: newExpense.payment_mode
         })
       });
 
-      if (res.ok) {
-        setFormData({
+      if (response.ok) {
+        setNewExpense({
           date: new Date().toISOString().split('T')[0],
           category: 'Food',
           description: '',
@@ -127,289 +124,278 @@ function App() {
         });
         fetchExpenses();
         fetchStats();
-        fetchBudgets();
+        fetchLeaderboard();
+        alert('Expense added!');
       }
     } catch (error) {
       console.error('Error adding expense:', error);
+      alert('Error adding expense');
     }
   };
 
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    if (!newUser.name) return;
-
-    try {
-      const res = await fetch(`${API_URL}/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newUser.name,
-          pocket_money: parseFloat(newUser.pocket_money)
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.id);
-        setNewUser({ name: '', pocket_money: 5000 });
-        fetchUsers();
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
+  const setBudget = async () => {
+    if (!budgetForm.budget_amount) {
+      alert('Please enter budget amount');
+      return;
     }
-  };
-
-  const handleSetBudget = async (e) => {
-    e.preventDefault();
-    if (!currentUser || !budgetForm.budget_amount) return;
 
     try {
-      const res = await fetch(`${API_URL}/budgets`, {
+      const response = await fetch(`${API_URL}/budgets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: currentUser,
-          ...budgetForm,
+          category: budgetForm.category,
           budget_amount: parseFloat(budgetForm.budget_amount)
         })
       });
 
-      if (res.ok) {
+      if (response.ok) {
         fetchBudgets();
-        setBudgetForm({ category: 'Food', budget_amount: 2000 });
+        fetchStats();
+        alert('Budget set!');
       }
     } catch (error) {
       console.error('Error setting budget:', error);
+      alert('Error setting budget');
     }
   };
 
-  const currentUserData = users.find(u => u.id === currentUser);
+  const deleteExpense = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/expenses/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        fetchExpenses();
+        fetchStats();
+        fetchLeaderboard();
+      }
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="container">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="header">
         <h1>💰 Expense Tracker</h1>
-        {currentUser && currentUserData && (
-          <div className="user-info">
-            <select value={currentUser} onChange={(e) => setCurrentUser(parseInt(e.target.value))}>
-              {users.map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.name} (₹{user.pocket_money})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <select value={currentUser} onChange={(e) => setCurrentUser(parseInt(e.target.value))}>
+          {users.map(user => (
+            <option key={user.id} value={user.id}>{user.name}</option>
+          ))}
+        </select>
       </header>
 
-      {!currentUser ? (
-        <div className="setup-screen">
-          <h2>Welcome! Create Your Profile</h2>
-          <form onSubmit={handleCreateUser}>
-            <input
-              type="text"
-              placeholder="Your name"
-              value={newUser.name}
-              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-              required
-            />
-            <input
-              type="number"
-              placeholder="Pocket money (₹)"
-              value={newUser.pocket_money}
-              onChange={(e) => setNewUser({ ...newUser, pocket_money: e.target.value })}
-            />
-            <button type="submit">Create Profile</button>
-          </form>
-        </div>
-      ) : (
-        <>
-          <nav className="tabs">
-            <button className={activeTab === 'home' ? 'active' : ''} onClick={() => setActiveTab('home')}>
-              🏠 Home
-            </button>
-            <button className={activeTab === 'budget' ? 'active' : ''} onClick={() => setActiveTab('budget')}>
-              💳 Budget
-            </button>
-            <button className={activeTab === 'stats' ? 'active' : ''} onClick={() => setActiveTab('stats')}>
-              📊 Stats
-            </button>
-            <button className={activeTab === 'leaderboard' ? 'active' : ''} onClick={() => setActiveTab('leaderboard')}>
-              🏆 Leaderboard
-            </button>
-          </nav>
+      <div className="tabs">
+        <button 
+          className={currentTab === 'home' ? 'active' : ''} 
+          onClick={() => setCurrentTab('home')}
+        >
+          🏠 Home
+        </button>
+        <button 
+          className={currentTab === 'budget' ? 'active' : ''} 
+          onClick={() => setCurrentTab('budget')}
+        >
+          💳 Budget
+        </button>
+        <button 
+          className={currentTab === 'stats' ? 'active' : ''} 
+          onClick={() => setCurrentTab('stats')}
+        >
+          📊 Stats
+        </button>
+        <button 
+          className={currentTab === 'leaderboard' ? 'active' : ''} 
+          onClick={() => setCurrentTab('leaderboard')}
+        >
+          🏆 Leaderboard
+        </button>
+      </div>
 
-          <main className="content">
-            {/* HOME TAB */}
-            {activeTab === 'home' && (
-              <div className="tab-content">
-                <h2>Add Expense</h2>
-                <form onSubmit={handleAddExpense} className="expense-form">
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
-                  />
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  >
-                    <option>Food</option>
-                    <option>Travel</option>
-                    <option>Entertainment</option>
-                    <option>Shopping</option>
-                    <option>Snacks</option>
-                    <option>Other</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Description (e.g., Coffee at Starbucks)"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Amount (₹)"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
-                  />
-                  <select
-                    value={formData.payment_mode}
-                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                  >
-                    <option>UPI</option>
-                    <option>CASH</option>
-                    <option>CARD</option>
-                    <option>OTHER</option>
-                  </select>
-                  <button type="submit">➕ Add Expense</button>
-                </form>
+      <div className="container">
+        {/* HOME TAB */}
+        {currentTab === 'home' && (
+          <div>
+            <h2>Add Expense</h2>
+            <div className="form">
+              <input 
+                type="date" 
+                value={newExpense.date} 
+                onChange={(e) => setNewExpense({...newExpense, date: e.target.value})} 
+              />
+              
+              <select 
+                value={newExpense.category} 
+                onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
+              >
+                <option>Food</option>
+                <option>Travel</option>
+                <option>Entertainment</option>
+                <option>Shopping</option>
+                <option>Snacks</option>
+                <option>Other</option>
+              </select>
 
-                <h2>Recent Expenses</h2>
-                <div className="expenses-list">
-                  {expenses.slice(0, 10).map(exp => (
-                    <div key={exp.id} className="expense-item">
-                      <div className="expense-main">
-                        <h4>{exp.category}</h4>
-                        <p>{exp.description}</p>
-                        <small>{exp.date}</small>
-                      </div>
-                      <div className="expense-amount">₹{exp.amount}</div>
-                    </div>
-                  ))}
-                  {expenses.length === 0 && <p className="empty">No expenses yet</p>}
-                </div>
-              </div>
-            )}
+              <input 
+                type="text" 
+                placeholder="Description" 
+                value={newExpense.description} 
+                onChange={(e) => setNewExpense({...newExpense, description: e.target.value})} 
+              />
+              
+              <input 
+                type="number" 
+                placeholder="Amount" 
+                value={newExpense.amount} 
+                onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} 
+              />
+              
+              <select 
+                value={newExpense.payment_mode} 
+                onChange={(e) => setNewExpense({...newExpense, payment_mode: e.target.value})}
+              >
+                <option>UPI</option>
+                <option>CASH</option>
+                <option>OTHER</option>
+              </select>
 
-            {/* BUDGET TAB */}
-            {activeTab === 'budget' && (
-              <div className="tab-content">
-                <h2>Set Budget</h2>
-                <form onSubmit={handleSetBudget} className="budget-form">
-                  <select
-                    value={budgetForm.category}
-                    onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}
-                  >
-                    <option>Food</option>
-                    <option>Travel</option>
-                    <option>Entertainment</option>
-                    <option>Shopping</option>
-                    <option>Snacks</option>
-                    <option>Other</option>
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Budget amount (₹)"
-                    value={budgetForm.budget_amount}
-                    onChange={(e) => setBudgetForm({ ...budgetForm, budget_amount: e.target.value })}
-                    required
-                  />
-                  <button type="submit">Set Budget</button>
-                </form>
+              <button onClick={addExpense}>Add Expense</button>
+            </div>
 
-                <h2>Your Budgets</h2>
-                <div className="budgets-grid">
-                  {budgets.map((budget, idx) => (
-                    <div key={idx} className={`budget-card ${budget.status}`}>
-                      <h3>{budget.category}</h3>
-                      <div className="budget-info">
-                        <p>Budget: ₹{budget.budget_amount}</p>
-                        <p>Spent: ₹{budget.spent}</p>
-                        <p>Remaining: ₹{budget.remaining}</p>
-                      </div>
-                      <div className="progress-bar">
-                        <div className="progress" style={{ width: `${Math.min(budget.percentage, 100)}%` }}></div>
-                      </div>
-                      <p className="percentage">{budget.percentage.toFixed(1)}%</p>
-                      {budget.status === 'danger' && <p className="warning">⚠️ Over Budget!</p>}
-                      {budget.status === 'warning' && <p className="warning">⚠️ Near Limit</p>}
-                    </div>
-                  ))}
-                  {budgets.length === 0 && <p className="empty">Set a budget to get started</p>}
-                </div>
-              </div>
-            )}
-
-            {/* STATS TAB */}
-            {activeTab === 'stats' && (
-              <div className="tab-content">
-                <h2>Monthly Summary</h2>
-                {stats && (
-                  <div className="stats-summary">
-                    <div className="stat-card">
-                      <h4>Total Spent</h4>
-                      <p className="big-number">₹{stats.total_spent}</p>
-                    </div>
-                    <div className="stat-card">
-                      <h4>Remaining</h4>
-                      <p className="big-number">₹{stats.remaining}</p>
-                    </div>
-                    <div className="stat-card">
-                      <h4>Pocket Money</h4>
-                      <p className="big-number">₹{stats.pocket_money}</p>
-                    </div>
+            <h3>Recent Expenses</h3>
+            <div className="list">
+              {expenses.map(expense => (
+                <div key={expense.id} className="item">
+                  <div>
+                    <strong>{expense.category}</strong> - ₹{expense.amount}
+                    <p>{expense.description} ({expense.date})</p>
                   </div>
-                )}
+                  <button onClick={() => deleteExpense(expense.id)} className="delete">Delete</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                <h3>Spending by Category</h3>
-                <div className="category-breakdown">
-                  {stats && stats.by_category.map((cat, idx) => (
-                    <div key={idx} className="category-item">
-                      <span>{cat.category}</span>
-                      <span>₹{cat.amount}</span>
+        {/* BUDGET TAB */}
+        {currentTab === 'budget' && (
+          <div>
+            <h2>Set Budget</h2>
+            <div className="form">
+              <select 
+                value={budgetForm.category} 
+                onChange={(e) => setBudgetForm({...budgetForm, category: e.target.value})}
+              >
+                <option>Food</option>
+                <option>Travel</option>
+                <option>Entertainment</option>
+                <option>Shopping</option>
+                <option>Snacks</option>
+              </select>
+              <input 
+                type="number" 
+                placeholder="Budget Amount" 
+                value={budgetForm.budget_amount} 
+                onChange={(e) => setBudgetForm({...budgetForm, budget_amount: e.target.value})} 
+              />
+              <button onClick={setBudget}>Set Budget</button>
+            </div>
+
+            <h3>Budget Status</h3>
+            <div className="budgets">
+              {budgets.map(budget => {
+                const spent = expenses
+                  .filter(e => e.category === budget.category)
+                  .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                
+                const percentage = budget.budget_amount > 0 
+                  ? (spent / budget.budget_amount) * 100 
+                  : 0;
+                
+                let status = 'good';
+                if (percentage > 100) status = 'danger';
+                else if (percentage > 80) status = 'warning';
+
+                return (
+                  <div key={budget.id} className={`budget ${status}`}>
+                    <h4>{budget.category}</h4>
+                    <p>Budget: ₹{budget.budget_amount}</p>
+                    <p>Spent: ₹{spent.toFixed(2)}</p>
+                    <div className="progress-bar">
+                      <div className="progress" style={{width: `${Math.min(percentage, 100)}%`}}></div>
                     </div>
-                  ))}
+                    <p>{percentage.toFixed(0)}%</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* STATS TAB */}
+        {currentTab === 'stats' && (
+          <div>
+            <h2>Monthly Statistics</h2>
+            {stats && (
+              <div className="stats">
+                <div className="stat-card">
+                  <h4>Total Spent</h4>
+                  <p className="big">₹{stats.total_spent || 0}</p>
+                </div>
+                <div className="stat-card">
+                  <h4>Monthly Budget</h4>
+                  <p className="big">₹{stats.monthly_budget || 0}</p>
+                </div>
+                <div className="stat-card">
+                  <h4>Remaining</h4>
+                  <p className="big">₹{(stats.monthly_budget || 0) - (stats.total_spent || 0)}</p>
                 </div>
               </div>
             )}
 
-            {/* LEADERBOARD TAB */}
-            {activeTab === 'leaderboard' && (
-              <div className="tab-content">
-                <h2>🏆 Savings Leaderboard</h2>
-                <div className="leaderboard">
-                  {leaderboard.map((user, idx) => (
-                    <div key={idx} className="leaderboard-item">
-                      <span className="rank">#{idx + 1}</span>
-                      <span className="name">{user.name}</span>
-                      <span className="savings-rate">{user.savings_rate}%</span>
-                    </div>
-                  ))}
+            <h3>Spending by Category</h3>
+            <div className="categories">
+              {stats && stats.by_category && Object.entries(stats.by_category).map(([category, amount]) => (
+                <div key={category} className="category">
+                  <span>{category}</span>
+                  <span>₹{amount}</span>
                 </div>
-              </div>
-            )}
-          </main>
-        </>
-      )}
+              ))}
+            </div>
+          </div>
+        )}
 
-      <footer className="app-footer">
-        <p>Built with React + Flask | Expense Tracker v1.0</p>
-      </footer>
+        {/* LEADERBOARD TAB */}
+        {currentTab === 'leaderboard' && (
+          <div>
+            <h2>🏆 Leaderboard - Savings Rate</h2>
+            <div className="leaderboard">
+              {leaderboard.length > 0 ? (
+                leaderboard.map((user, index) => (
+                  <div key={user.user_id} className="rank">
+                    <span className="rank-num">#{index + 1}</span>
+                    <span className="rank-name">{user.user_name}</span>
+                    <span className="rank-rate">{user.savings_rate}% saved</span>
+                  </div>
+                ))
+              ) : (
+                <p>No leaderboard data yet</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-export default App;
